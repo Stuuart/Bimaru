@@ -2,8 +2,8 @@
 # Devem alterar as classes e funções neste ficheiro de acordo com as instruções do enunciado.
 # Além das funções e classes já definidas, podem acrescentar outras que considerem pertinentes.
 
-# Grupo 00:
-# 00000 Nome1
+# Grupo 152:
+# 96196 Duarte Manuel da Cruz Costa
 # 00000 Nome2
 
 import sys
@@ -110,4 +110,9 @@ if __name__ == "__main__":
     # Usar uma técnica de procura para resolver a instância,
     # Retirar a solução a partir do nó resultante,
     # Imprimir para o standard output no formato indicado.
+
+    game_board = Board()
+
+    Board.parse_instance()
+
     pass

@@ -6,7 +6,7 @@
 # 96196 Duarte Manuel da Cruz Costa
 # 00000 Nome2
 
-import sys
+from sys import stdin
 from search import (
     Problem,
     Node,
@@ -16,6 +16,7 @@ from search import (
     greedy_search,
     recursive_best_first_search,
 )
+import numpy as np
 
 
 class BimaruState:
@@ -35,16 +36,25 @@ class BimaruState:
 class Board:
     """Representação interna de um tabuleiro de Bimaru."""
 
+    game_cells = np.zeros((10, 10), dtype=np.chararray)
+
+    def __init__(self):
+        self.row_elements: list
+        self.col_elements: list
+        self.hint_lst: list
+
     def get_value(self, row: int, col: int) -> str:
         """Devolve o valor na respetiva posição do tabuleiro."""
         # TODO
-        pass
+        return self.game_cells[row][col]
 
     def adjacent_vertical_values(self, row: int, col: int) -> (str, str):
         """Devolve os valores imediatamente acima e abaixo,
         respectivamente."""
         # TODO
-        pass
+        up_value = self.game_cells[row-1][col]
+        down_value = self.game_cells[row+1][col]
+        return up_value, down_value
 
     def adjacent_horizontal_values(self, row: int, col: int) -> (str, str):
         """Devolve os valores imediatamente à esquerda e à direita,
@@ -64,7 +74,36 @@ class Board:
             > line = stdin.readline().split()
         """
         # TODO
-        pass
+        initial_board = Board
+
+        # Gets the number of boats elements per column/row
+        for i in range(2):
+            line = stdin.readline().split()
+            if line[0] == 'ROW':
+                initial_board.row_elements = line[1:]
+            elif line[0] == 'COLUMN':
+                initial_board.col_elements = line[1:]
+            else:
+                print("Row or Column info missing!")
+                return None
+
+        # Reads number of hints given
+        line = stdin.readline().split()
+        if len(line) != 1:
+            print("NO HINTS!")
+            return None
+        num_hints = int(line[0])
+
+        # Writes the hints in the board
+        for i in range(num_hints):
+            line = stdin.readline().split()
+            if line[0] == "HINT":
+                initial_board.game_cells[int(line[1]), int(line[2])] = line[3]
+            else:
+                print("Problem with HINT!")
+                return None
+
+        return initial_board
 
     # TODO: outros metodos da classe
 
@@ -111,8 +150,8 @@ if __name__ == "__main__":
     # Retirar a solução a partir do nó resultante,
     # Imprimir para o standard output no formato indicado.
 
-    game_board = Board()
+    game_board = Board.parse_instance()
 
-    Board.parse_instance()
+    print('CHECK')
 
     pass

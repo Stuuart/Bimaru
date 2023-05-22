@@ -36,12 +36,12 @@ class BimaruState:
 class Board:
     """Representação interna de um tabuleiro de Bimaru."""
 
-    game_cells = np.zeros((10, 10), dtype=np.chararray)
+    game_cells = np.empty((10, 10), dtype=np.chararray)
 
     def __init__(self):
-        self.row_elements: list
-        self.col_elements: list
-        self.hint_lst: list
+        self.row_elements = []
+        self.col_elements = []
+        self.game_cells = np.empty((10, 10), dtype=np.chararray)
 
     def get_value(self, row: int, col: int) -> str:
         """Devolve o valor na respetiva posição do tabuleiro."""
@@ -60,7 +60,9 @@ class Board:
         """Devolve os valores imediatamente à esquerda e à direita,
         respectivamente."""
         # TODO
-        pass
+        right_value = self.game_cells[row][col+1]
+        left_value = self.game_cells[row][col-1]
+        return right_value, left_value
 
     @staticmethod
     def parse_instance():

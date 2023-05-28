@@ -41,6 +41,12 @@ class Board:
         self.col_elements = []
         self.game_cells = np.empty((10, 10), dtype=np.chararray)
 
+        # TODO Best way to do it?
+        self.one_boat = 4
+        self.two_boat = 3
+        self.three_boat = 2
+        self.four_boat = False
+
     def get_value(self, row: int, col: int) -> str:
         """Devolve o valor na respetiva posição do tabuleiro."""
         # TODO
@@ -146,13 +152,35 @@ class Bimaru(Problem):
     def __init__(self, board: Board):
         """O construtor especifica o estado inicial."""
         # TODO
-        self.board = board
+        self.initial = BimaruState(board)
 
     def actions(self, state: BimaruState):
         """Retorna uma lista de ações que podem ser executadas a
         partir do estado passado como argumento."""
-        # TODO
-        pass
+        # TODO Confuso af
+
+        possible_actions = []
+
+        # Find indices where 'L' or 'l' occurs
+        indices = np.argwhere((state.board.game_cells == 'L') | (state.board.game_cells == 'l'))
+
+        if len(indices) != 0:
+            possible_actions.append([(index[0] + 1, index[1], 'm') for index in indices])
+            possible_actions.append([(index[0] + 1, index[1], 'r') for index in indices])
+
+        indices = np.argwhere((state.board.game_cells == 'R') | (state.board.game_cells == 'r'))
+
+        if len(indices) != 0:
+            possible_actions.append([(index[0] + 1, index[1], 'm') for index in indices])
+            possible_actions.append([(index[0] + 1, index[1], 'l') for index in indices])
+
+        indices = np.argwhere((state.board.game_cells == 'T') | (state.board.game_cells == 't'))
+
+        if len(indices) != 0:
+            possible_actions.append([(index[0] + 1, index[1], 'm') for index in indices])
+            possible_actions.append([(index[0] + 1, index[1], 'b') for index in indices])
+
+        return possible_actions
 
     def result(self, state: BimaruState, action):
         """Retorna o estado resultante de executar a 'action' sobre
@@ -171,8 +199,9 @@ class Bimaru(Problem):
         estão preenchidas de acordo com as regras do problema."""
         # TODO
 
-        if self.board.game_cells.size - np.count_nonzero(self.board.game_cells) != 0:
+        if state.board.game_cells.size - np.count_nonzero(state.board.game_cells) != 0:
             return False
+
         return True
 
     def h(self, node: Node):
@@ -194,13 +223,9 @@ if __name__ == "__main__":
 
     problem = Bimaru(game_board)
 
-    s0 = BimaruState(game_board)
+    goal_node = depth_first_tree_search(problem)
 
-    # result_state = problem.result(initial_state, (3, 3, 'w'))
-
-    print(game_board.adjacent_vertical_values(3, 3))
-    print(game_board.adjacent_horizontal_values(3, 3))
-    print(problem.goal_test(s0))
+    # s1 = problem.result(s0, (3, 3, 'w'))
 
     # Convert array to string where each row is a line
     string_representation = '\n'.join([''.join(row.astype(str)) for row in game_board.game_cells])

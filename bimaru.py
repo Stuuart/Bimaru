@@ -23,7 +23,10 @@ class BimaruState:
     state_id = 0
 
     def __init__(self, board):
-        self.board = board
+        self.board = Board()
+        self.board.row_elements = board.row_elements
+        self.board.col_elements = board.col_elements
+        self.board.game_cells = np.copy(board.game_cells)   # Avoids changing previous boards
         self.id = BimaruState.state_id
         BimaruState.state_id += 1
 
@@ -165,20 +168,34 @@ class Bimaru(Problem):
         indices = np.argwhere((state.board.game_cells == 'L') | (state.board.game_cells == 'l'))
 
         if len(indices) != 0:
-            possible_actions.append([(index[0] + 1, index[1], 'm') for index in indices])
-            possible_actions.append([(index[0] + 1, index[1], 'r') for index in indices])
+            for index in indices:
+                if state.board.game_cells[index[0], index[1] + 1] is None:
+                    possible_actions.append([(index[0], index[1] + 1, 'm')])
+                    possible_actions.append([(index[0], index[1] + 1, 'r')])
 
         indices = np.argwhere((state.board.game_cells == 'R') | (state.board.game_cells == 'r'))
 
         if len(indices) != 0:
-            possible_actions.append([(index[0] + 1, index[1], 'm') for index in indices])
-            possible_actions.append([(index[0] + 1, index[1], 'l') for index in indices])
+            for index in indices:
+                if state.board.game_cells[index[0], index[1] - 1] is None:
+                    possible_actions.append([(index[0], index[1] - 1, 'm')])
+                    possible_actions.append([(index[0], index[1] - 1, 'l')])
 
         indices = np.argwhere((state.board.game_cells == 'T') | (state.board.game_cells == 't'))
 
         if len(indices) != 0:
-            possible_actions.append([(index[0] + 1, index[1], 'm') for index in indices])
-            possible_actions.append([(index[0] + 1, index[1], 'b') for index in indices])
+            for index in indices:
+                if state.board.game_cells[index[0] + 1, index[1]] is None:
+                    possible_actions.append([(index[0] + 1, index[1], 'm')])
+                    possible_actions.append([(index[0] + 1, index[1], 'b')])
+
+        indices = np.argwhere((state.board.game_cells == 'B') | (state.board.game_cells == 'b'))
+
+        if len(indices) != 0:
+            for index in indices:
+                if state.board.game_cells[index[0] - 1, index[1]] is None:
+                    possible_actions.append([(index[0] - 1, index[1], 'm')])
+                    possible_actions.append([(index[0] - 1, index[1], 't')])
 
         return possible_actions
 
@@ -189,9 +206,19 @@ class Bimaru(Problem):
         self.actions(state)."""
         # TODO
 
-        state.board.game_cells[action[0], action[1]] = action[2]
+        new_state = BimaruState(state.board)
 
-        return BimaruState
+        new_state.board.game_cells[action[0][0], action[0][1]] = action[0][2]
+
+        # TODO fill surrounding with water
+        """if action[0][2] == 'b':
+            new_state.board.game_cells[action[0][0] + 1, action[0][1]] = '.'
+            new_state.board.game_cells[action[0][0] + 1, action[0][1] + 1] = '.'"""
+
+
+        new_state.board.water_fill()
+
+        return new_state
 
     def goal_test(self, state: BimaruState):
         """Retorna True se e só se o estado passado como argumento é
@@ -225,7 +252,9 @@ if __name__ == "__main__":
 
     goal_node = depth_first_tree_search(problem)
 
-    # s1 = problem.result(s0, (3, 3, 'w'))
+    # s1 = problem.result(problem.initial, (3, 3, 'w'))
+
+    print(goal_node)
 
     # Convert array to string where each row is a line
     string_representation = '\n'.join([''.join(row.astype(str)) for row in game_board.game_cells])

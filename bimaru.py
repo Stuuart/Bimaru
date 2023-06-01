@@ -249,7 +249,6 @@ class Board:
             if filled_cells - elements - water_tips == 0:
                 self.game_cells[:, i] = ['.' if cell is None else cell for cell in self.game_cells[:, i]]
         
-
     # Recebe duas coordenadas, c1 e c2, e um tuplo de elementos que pode aceitar, acpt,
     # devolve True se apenas existirem elementos de e entre c1 e c2
     def find_between(self, c1, c2, acpt):
@@ -257,28 +256,28 @@ class Board:
         for i in range(len(acpt)):
             np.append(elementos, self.find(acpt[i]))
 
-
     # Encontrar 4 quadrados consecutivos ou usar partes oferecidas pelas HINTs
     # Recebe um BimaruState e devolve uma lista com as possiveis posicoes do 4Boat
     # Cada possivel posicao do 4Boat eh em si uma lista de coordenadas
-    def find_4Boat_actions(state: BimaruState):
+    def find_4Boat_actions(self):
         
         possible_actions = []
 
         # Find indices where 'T' or 't' occurs
-        indices = np.argwhere((state.board.game_cells == 'T') | (state.board.game_cells == 't'))
+        indices = self.find('T') 
+        np.append(indices, self.find('t'))
         if len(indices) != 0:
             for index in indices:
                 x = index[0]
                 y = index[1]
-                val = state.board.get_value(x,y)
+                val = self.get_value(x,y)
 
                 # Check if there is space in the column for a 4Boat
-                if state.board.check_col_parts(y) < 3: continue
+                if self.check_col_parts(y) < 3: continue
 
-                down = state.board.adjacent_vertical_values(x,y)[1]
-                down2 = state.board.adjacent_vertical_values(x+1,y)[1]
-                down3 = state.board.adjacent_vertical_values(x+2,y)[1]
+                down = self.adjacent_vertical_values(x,y)[1]
+                down2 = self.adjacent_vertical_values(x+1,y)[1]
+                down3 = self.adjacent_vertical_values(x+2,y)[1]
                 
                 # If the middle spaces aren't None, 'M' or 'm', it isn't a possible action
                 if down3 != (None and 'B' and 'b') or (down or down2) != (None and 'M' and 'm'): continue
@@ -290,19 +289,20 @@ class Board:
                 possible_actions.append([[x, y, val], [x+1, y, down], [x+2, y, down2], [x+3, y, down3]])
 
         # Find indices where 'B' or 'b' occurs
-        indices = np.argwhere((state.board.game_cells == 'B') | (state.board.game_cells == 'b'))
+        indices = self.find('B') 
+        np.append(indices, self.find('b'))
         if len(indices) != 0:
             for index in indices:
                 x = index[0]
                 y = index[1]
-                val = state.board.get_value(x,y)
+                val = self.get_value(x,y)
 
                 # Check if there is space in the column for a 4Boat
-                if state.board.check_col_parts(y) < 3: continue
+                if self.check_col_parts(y) < 3: continue
 
-                up = state.board.adjacent_vertical_values(x,y)[0]
-                up2 = state.board.adjacent_vertical_values(x-1,y)[0]
-                up3 = state.board.adjacent_vertical_values(x-2,y)[0]
+                up = self.adjacent_vertical_values(x,y)[0]
+                up2 = self.adjacent_vertical_values(x-1,y)[0]
+                up3 = self.adjacent_vertical_values(x-2,y)[0]
                 
                 # If the middle spaces aren't None, 'M' or 'm', it isn't a possible action
                 if up3 != (None and 'T' and 't') or (up or up2) != (None and 'M' and 'm'): continue
@@ -314,19 +314,20 @@ class Board:
                 possible_actions.append([[x-3, y, up3], [x-2, y, up2], [x-1, y, up], [x, y, val]])
 
         # Find indices where 'L' or 'l' occurs
-        indices = np.argwhere((state.board.game_cells == 'L') | (state.board.game_cells == 'l'))
+        indices = self.find('L') 
+        np.append(indices, self.find('l'))
         if len(indices) != 0:
             for index in indices:
                 x = index[0]
                 y = index[1]
-                val = state.board.get_value(x,y)
+                val = self.get_value(x,y)
 
                 # Check if there is space in the column for a 4Boat
-                if state.board.check_col_parts(y) < 3: continue
+                if self.check_col_parts(y) < 3: continue
 
-                right = state.board.adjacent_horizontal_values(x,y)[1]
-                right2 = state.board.adjacent_horizontal_values(x,y+1)[1]
-                right3 = state.board.adjacent_horizontal_values(x,y+2)[1]
+                right = self.adjacent_horizontal_values(x,y)[1]
+                right2 = self.adjacent_horizontal_values(x,y+1)[1]
+                right3 = self.adjacent_horizontal_values(x,y+2)[1]
                 
                 # If the middle spaces aren't None, 'M' or 'm', it isn't a possible action
                 if right3 != (None and 'R' and 'r') or (right or right2) != (None and 'M' and 'm'): continue
@@ -338,19 +339,20 @@ class Board:
                 possible_actions.append([[x, y, val], [x, y+1, right], [x, y+2, right2], [x, y+3, right3]])
 
         # Find indices where 'R' or 'r' occurs
-        indices = np.argwhere((state.board.game_cells == 'L') | (state.board.game_cells == 'l'))
+        indices = self.find('R') 
+        np.append(indices, self.find('r'))
         if len(indices) != 0:
             for index in indices:
                 x = index[0]
                 y = index[1]
-                val = state.board.get_value(x,y)
+                val = self.get_value(x,y)
 
                 # Check if there is space in the column for a 4Boat
-                if state.board.check_col_parts(y) < 3: continue
+                if self.check_col_parts(y) < 3: continue
 
-                left = state.board.adjacent_horizontal_values(x,y)[0]
-                left2 = state.board.adjacent_horizontal_values(x,y-1)[0]
-                left3 = state.board.adjacent_horizontal_values(x,y-2)[0]
+                left = self.adjacent_horizontal_values(x,y)[0]
+                left2 = self.adjacent_horizontal_values(x,y-1)[0]
+                left3 = self.adjacent_horizontal_values(x,y-2)[0]
                 
                 # If the middle spaces aren't None, 'M' or 'm', it isn't a possible action
                 if left3 != (None and 'L' and 'l') or (left or left2) != (None and 'M' and 'm'): continue
@@ -362,23 +364,24 @@ class Board:
                 possible_actions.append([[x, y-3, left3], [x, y-2, left2], [x, y-1, left], [x, y, val]])
 
         # Find indices where 'M' or 'm' occurs
-        indices = np.argwhere((state.board.game_cells == 'M') | (state.board.game_cells == 'm'))
+        indices = self.find('M') 
+        np.append(indices, self.find('m'))
         if len(indices) != 0:
             for index in indices:
                 x = index[0]
                 y = index[1]
-                val = state.board.get_value(x,y)
+                val = self.get_value(x,y)
 
                 # Check if there is space in the column for a 4Boat
-                print(state.board.check_col_parts(x))
-                if state.board.check_col_parts(y) < 3: continue
-                if state.board.check_row_parts(y) < 3: continue
+                print(self.check_col_parts(x))
+                if self.check_col_parts(y) < 3: continue
+                if self.check_row_parts(y) < 3: continue
 
-                left = state.board.adjacent_horizontal_values(x,y)[0]
-                left2 = state.board.adjacent_vertical_values(x,y-1)[0]
+                left = self.adjacent_horizontal_values(x,y)[0]
+                left2 = self.adjacent_vertical_values(x,y-1)[0]
 
-                right = state.board.adjacent_horizontal_values(x,y)[1]
-                right2 = state.board.adjacent_vertical_values(x,y+1)[1]
+                right = self.adjacent_horizontal_values(x,y)[1]
+                right2 = self.adjacent_vertical_values(x,y+1)[1]
                 # 2Left 1Right 
                 for i in range(1):
                     if right != (None and 'R' and 'r'): continue
@@ -401,11 +404,11 @@ class Board:
                     if right2 != 'R': right2 = 'r'
                     possible_actions.append([[x, y-1, left], [x, y, val], [x, y+1, right], [x, y+2, right2]])
 
-                up = state.board.adjacent_horizontal_values(x,y)[0]
-                up2 = state.board.adjacent_vertical_values(x-1,y)[0]
+                up = self.adjacent_horizontal_values(x,y)[0]
+                up2 = self.adjacent_vertical_values(x-1,y)[0]
 
-                down = state.board.adjacent_horizontal_values(x,y)[1]
-                down2 = state.board.adjacent_vertical_values(x+1,y)[1]
+                down = self.adjacent_horizontal_values(x,y)[1]
+                down2 = self.adjacent_vertical_values(x+1,y)[1]
                 # 2Up 1Down 
                 for i in range(1):
                     if down != (None and 'B' and 'b'): continue
@@ -443,14 +446,12 @@ class Bimaru(Problem):
         partir do estado passado como argumento."""
         # TODO Confuso af
 
-        
-
-
+    
         # Actions para 4_boat, depois result, depois actions para 3_boat, repeat...
         #possible_actions = []
 
         if state.board.four_boat != 0:
-           return find_4Boat_actions(state)
+           return state.board.find_4Boat_actions()
         
         #if state.board.three_boat != 0:
          #   possible_actions.append(find_3Boat_actions(state))

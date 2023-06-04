@@ -216,12 +216,6 @@ class Board:
                 elif val == 'T':
                     while self.get_value(i+cnt, u) != None and self.get_value(i+cnt, u) != "W":
                         cnt += 1
-                elif val == 'B':
-                    while self.get_value(i-cnt, u) != None and self.get_value(i-cnt, u) != "W":
-                        cnt += 1
-                elif val == 'R':
-                    while self.get_value(i, u-cnt) != None and self.get_value(i, u-cnt) != "W":
-                        cnt += 1
                 elif val == 'L':
                     while self.get_value(i, u+cnt) != None and self.get_value(i, u+cnt) != "W":
                         cnt += 1
@@ -308,17 +302,19 @@ class Board:
 
     def check_possible_position(self, row: int, col: int):
         return self.game_cells[row][col] != '.' and self.game_cells[row][col] != 'W' and\
-             not (self.game_cells[row][col] != None and self.game_cells[row][col].islower())
+             (self.game_cells[row][col] == None or self.game_cells[row][col].isupper())
 
     def check_limits_horizontal(self, row: int, col: int, size: int):
         a = True
         b = True
         if col < 10 - size:
             a = self.game_cells[row][col + size] == None \
-                or self.game_cells[row][col + size] == '.' or self.game_cells[row][col + size] == 'W'
+                or self.game_cells[row][col + size] == '.' or self.game_cells[row][col + size] == 'W'\
+                or self.game_cells[row][col + size] == 'Out'
         if col != 0:
             b = self.game_cells[row][col - 1] == None \
-                or self.game_cells[row][col - 1] == '.' or self.game_cells[row][col - 1] == 'W'
+                or self.game_cells[row][col - 1] == '.' or self.game_cells[row][col - 1] == 'W'\
+                or self.game_cells[row][col - 1] == 'Out'
         return a and b
 
     def check_limits_vertical(self, row: int, col: int, size: int):
@@ -326,10 +322,12 @@ class Board:
         b = True
         if row < 10 - size:
             a = self.game_cells[row + size][col] == None \
-                or self.game_cells[row + size][col] == '.' or self.game_cells[row + size][col] == 'W'
+                or self.game_cells[row + size][col] == '.' or self.game_cells[row + size][col] == 'W'\
+                or self.game_cells[row + size][col] == 'Out'
         if row != 0:
             b = self.game_cells[row - 1][col] == None \
-                or self.game_cells[row - 1][col] == '.' or self.game_cells[row - 1][col] == 'W'
+                or self.game_cells[row - 1][col] == '.' or self.game_cells[row - 1][col] == 'W'\
+                or self.game_cells[row - 1][col] == 'Out'
         return a and b
 
     def find_boat_vertical(self, col: int, size: int):
@@ -363,15 +361,20 @@ class Board:
                     else:
                         act = None
                         break
-                if act != None :
-                    actions.append(act)
+                if act != None:
+                    all_upper = True
+                    for a in act:
+                        if a[2].islower():
+                            all_upper = False
+                    if not all_upper: 
+                        actions.append(act)
 
         return actions
         
     def find_boat_horizontal(self, row: int, size: int):
         actions = []
         for i in range(11-size):
-            if self.check_limits_horizontal(row, i, size):
+            if not self.check_limits_horizontal(row, i, size):
                 continue
             if self.check_possible_position(row, i):
                 act = []
@@ -401,7 +404,12 @@ class Board:
                         act = None
                         break
                 if act != None:
-                    actions.append(act)
+                    all_upper = True
+                    for a in act:
+                        if a[2].islower():
+                            all_upper = False
+                    if not all_upper: 
+                        actions.append(act)
         return actions
 
     # Encontrar n quadrados consecutivos ou usar partes oferecidas pelas HINTs
@@ -427,10 +435,17 @@ class Bimaru(Problem):
     def actions(self, state: BimaruState):
         """Retorna uma lista de ações que podem ser executadas a
         partir do estado passado como argumento."""
+        # TODO Confuso af
+        print("generating actions...")
+        print("4Boats:", state.board.four_boat)
+        print("3Boats:", state.board.three_boat)
+        print("2Boats:", state.board.two_boat)
+        print("1Boats:", state.board.one_boat)
+
 
         # Actions para 4_boat, depois result, depois actions para 3_boat, repeat...
         if state.board.four_boat != 0:
-            return state.board.find_boat_actions(4)
+            return state.board.find_boat_actions(4) 
         
         # Find 3 consecutive squares in a row or col or use boat parts given by hints
         if state.board.three_boat != 0:
@@ -438,7 +453,9 @@ class Bimaru(Problem):
 
         # Find 2 consecutive squares in a row or col or use boat parts given by hints
         if state.board.two_boat != 0:
-           return state.board.find_boat_actions(2)
+            s = state.board.find_boat_actions(2)
+            print(s)
+            return s
         
         if state.board.one_boat != 0:
             actions = []
@@ -466,7 +483,6 @@ class Bimaru(Problem):
             board.row_elements_curr[a[0]] -= 1
             board.col_elements_curr[a[1]] -= 1
 
-
         board.water_fill()
 
         # When four_boat is placed, state.board.four_boat -= 1
@@ -475,6 +491,9 @@ class Bimaru(Problem):
         elif size == 3: board.three_boat -= 1
         elif size == 2: board.two_boat -= 1
         elif size == 1: board.one_boat -= 1
+        print("result...")
+        print(size)
+        print(new_state.board)
 
         return new_state
 
@@ -482,6 +501,8 @@ class Bimaru(Problem):
         """Retorna True se e só se o estado passado como argumento é
         um estado objetivo. Deve verificar se todas as posições do tabuleiro
         estão preenchidas de acordo com as regras do problema."""
+        # TODO
+        print("goal Testing...")
 
         one_boat = state.board.one_boat
         two_boat = state.board.two_boat
@@ -490,19 +511,6 @@ class Bimaru(Problem):
 
         return (one_boat+two_boat+three_boat+four_boat) == 0
 
-
-    """@staticmethod
-    def count_pieces(l, num, rc):
-        val = 0
-        if rc:
-            for i in range(10):
-                if (not (l[num][i] == '.' or l[num][i] is None or l[num][i] == 'W')):
-                    val += 1
-        else:
-            for i in range(10):
-                if (not (l[i][num] == '.' or l[i][num] is None or l[i][num] == 'W')):
-                    val += 1
-        return val"""
 
     def h(self, node: Node):
         """Função heuristica utilizada para a procura A*."""

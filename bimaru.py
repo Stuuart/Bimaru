@@ -65,7 +65,7 @@ class Board:
         self.four_boat = 1
     
     def __str__(self):
-        string_representation = ''.join((str(row)) for row in self.row_elements) + '\n' + ''.join((str(col)) for col in self.col_elements) + '\n'
+        string_representation = ''#.join((str(row)) for row in self.row_elements) + '\n' + ''.join((str(col)) for col in self.col_elements) + '\n'
         string_representation += '\n'.join([''.join(row.astype(str)) for row in self.game_cells])
         return string_representation.replace('None', '_')
 
@@ -389,10 +389,10 @@ class Board:
                             else:
                                 val = 'm'
                         else:
-                            if u == 0 and val != 'T':
+                            if u == 0 and val != 'L':
                                 act = None
                                 break
-                            elif u == size - 1 and val != 'B':
+                            elif u == size - 1 and val != 'R':
                                 act = None
                                 break
                             elif  u != 0 and  u != size - 1 and val != 'M':
@@ -435,17 +435,10 @@ class Bimaru(Problem):
     def actions(self, state: BimaruState):
         """Retorna uma lista de ações que podem ser executadas a
         partir do estado passado como argumento."""
-        # TODO Confuso af
-        print("generating actions...")
-        print("4Boats:", state.board.four_boat)
-        print("3Boats:", state.board.three_boat)
-        print("2Boats:", state.board.two_boat)
-        print("1Boats:", state.board.one_boat)
-
 
         # Actions para 4_boat, depois result, depois actions para 3_boat, repeat...
         if state.board.four_boat != 0:
-            return state.board.find_boat_actions(4) 
+            return state.board.find_boat_actions(4)
         
         # Find 3 consecutive squares in a row or col or use boat parts given by hints
         if state.board.three_boat != 0:
@@ -453,9 +446,7 @@ class Bimaru(Problem):
 
         # Find 2 consecutive squares in a row or col or use boat parts given by hints
         if state.board.two_boat != 0:
-            s = state.board.find_boat_actions(2)
-            print(s)
-            return s
+            return state.board.find_boat_actions(2)
         
         if state.board.one_boat != 0:
             actions = []
@@ -463,9 +454,10 @@ class Bimaru(Problem):
                 for u in range(10):
                     if state.board.get_value(i, u) == None:
                         actions.append([[i, u, 'c']])
+            
             return actions
 
-
+        return []
 
     # action: list of list of int/char
     # Place a boat, surrounded by water
@@ -491,10 +483,7 @@ class Bimaru(Problem):
         elif size == 3: board.three_boat -= 1
         elif size == 2: board.two_boat -= 1
         elif size == 1: board.one_boat -= 1
-        print("result...")
-        print(size)
-        print(new_state.board)
-
+        
         return new_state
 
     def goal_test(self, state: BimaruState):
@@ -502,14 +491,45 @@ class Bimaru(Problem):
         um estado objetivo. Deve verificar se todas as posições do tabuleiro
         estão preenchidas de acordo com as regras do problema."""
         # TODO
-        print("goal Testing...")
 
         one_boat = state.board.one_boat
         two_boat = state.board.two_boat
         three_boat = state.board.three_boat
         four_boat = state.board.four_boat
 
-        return (one_boat+two_boat+three_boat+four_boat) == 0
+        if (one_boat+two_boat+three_boat+four_boat) != 0:
+            return False
+
+        # Verificar que todas as colunas e linhas tem o maximo possivel de barcos
+        # Verificar que apenas C/c's estao rodeados de '.' ou 'W'
+        for i in range(10):
+            row_elements = state.board.row_elements[i]
+            col_elements = state.board.col_elements[i]
+            for u in range(10):
+                val = state.board.get_value(i, u)
+                col_val = state.board.get_value(u, i)
+                if val == None:
+                    return False
+
+                if (val.isupper() or val.islower()) and val != 'W':
+                    row_elements -= 1
+                if (col_val.isupper() or col_val.islower()) and col_val != 'W':
+                    col_elements -= 1
+
+                valid = False
+                if val.isupper() and val != 'W':
+                    if val != 'C':
+                        for s in state.board.check_surroundings((i,u)):
+                            if s != '.' and s != 'W' and s != None:
+                                valid = True
+                                break
+                        if not valid:
+                            return valid
+
+            if row_elements != 0 or col_elements != 0:
+                return False
+
+        return True
 
 
     def h(self, node: Node):
@@ -528,16 +548,18 @@ if __name__ == "__main__":
 
     game_board = Board.parse_instance()
 
-    print(game_board)
+    #print(game_board)
 
     problem = Bimaru(game_board)
 
-    goal_node = depth_first_tree_search(problem)    
+    #goal_node = depth_first_tree_search(problem)    
+
+    goal_node = breadth_first_tree_search(problem)  
    
     print(goal_node.state.board)
 
     # Convert array to string where each row is a line
 
-    
+    # diff ../../instances-students/instance01.out results/01.txt 
 
     pass

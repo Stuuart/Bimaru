@@ -30,9 +30,16 @@ class BimaruState:
         self.board = Board()
         self.board.row_elements = board.row_elements
         self.board.col_elements = board.col_elements
+        self.board.row_elements_curr = board.row_elements_curr.copy()
+        self.board.col_elements_curr = board.col_elements_curr.copy()
         self.board.game_cells = np.copy(board.game_cells)   # Avoids changing previous boards
         self.id = BimaruState.state_id
         BimaruState.state_id += 1
+
+        self.board.one_boat = board.one_boat
+        self.board.two_boat = board.two_boat
+        self.board.three_boat = board.three_boat
+        self.board.four_boat = board.four_boat
 
     def __lt__(self, other):
         return self.id < other.id
@@ -41,11 +48,14 @@ class BimaruState:
 
 
 class Board:
+    boats = ['T', 'B', 'L', 'M', 'R', 'C', 't', 'b', 'l', 'm', 'r', 'c']
     """Representação interna de um tabuleiro de Bimaru."""
 
     def __init__(self):
         self.row_elements = []
         self.col_elements = []
+        self.row_elements_curr = []
+        self.col_elements_curr = []
         self.game_cells = np.empty((10, 10), dtype=np.chararray)
 
         # TODO Best way to do it?
@@ -70,13 +80,14 @@ class Board:
     def check_col_parts(self, col:int):
         parts = np.count_nonzero(self.game_cells[:, col])
         water = np.count_nonzero(np.logical_or(self.game_cells[:, col] == 'W', self.game_cells[:, col] == '.'))
-        return int(self.col_elements[col]) - parts + water
+        return self.col_elements[col] - parts + water
 
     # recebe coordenada da row, devolve quantas pecas ainda podem ser postas 
     def check_row_parts(self, row:int):
         parts = np.count_nonzero(self.game_cells[row, :])
         water = np.count_nonzero(np.logical_or(self.game_cells[row, :] == 'W', self.game_cells[row, :] == '.'))
-        return int(self.row_elements[row]) - parts + water
+        return self.row_elements[row] - parts + water
+
 
     def adjacent_vertical_values(self, row: int, col: int) -> (str, str):
         """Devolve os valores imediatamente acima e abaixo,
@@ -148,10 +159,6 @@ class Board:
 
         return r_up, r_down, l_up, l_down
 
-    # Returns a list of coordinates for a specified element in the board
-    def find(self, element: str):
-        return np.argwhere(self.game_cells == element) 
-
     @staticmethod
     def parse_instance():
         """Lê o test do standard input (stdin) que é passado como argumento
@@ -169,9 +176,12 @@ class Board:
         for i in range(2):
             line = stdin.readline().split()
             if line[0] == 'ROW':
-                initial_board.row_elements = line[1:]
+                initial_board.row_elements = list(map(int, line[1:]))
+                initial_board.row_elements_curr = list(map(int, line[1:]))
             elif line[0] == 'COLUMN':
-                initial_board.col_elements = line[1:]
+                initial_board.col_elements = list(map(int, line[1:]))
+                initial_board.col_elements_curr = list(map(int, line[1:]))
+
             else:
                 print("Row or Column info missing!")
                 return None
@@ -192,213 +202,221 @@ class Board:
                 print("Problem with HINT!")
                 return None
 
+        initial_board.count_initial_boats()
         initial_board.water_fill()
         return initial_board
 
-    # TODO: outros metodos da classe
 
+    def count_initial_boats(self):
+        for i in range(10):
+            for u in range(10):
+                val = self.get_value(i, u)
+                cnt = 0
+                if val == 'C': self.one_boat -= 1
+                elif val == 'T':
+                    while self.get_value(i+cnt, u) != None and self.get_value(i+cnt, u) != "W":
+                        cnt += 1
+                elif val == 'B':
+                    while self.get_value(i-cnt, u) != None and self.get_value(i-cnt, u) != "W":
+                        cnt += 1
+                elif val == 'R':
+                    while self.get_value(i, u-cnt) != None and self.get_value(i, u-cnt) != "W":
+                        cnt += 1
+                elif val == 'L':
+                    while self.get_value(i, u+cnt) != None and self.get_value(i, u+cnt) != "W":
+                        cnt += 1
+                
+                if cnt == 4:
+                    self.four_boat -= 1
+                elif cnt == 3:
+                    self.three_boat -= 1
+                elif cnt == 2:
+                    self.two_boat -= 1
+               
     # Used to fill with water in columns/lines where no more boats can be put
     def water_fill(self):
         
-        # Surround C/c's with water
-        indices = self.find('C')
-        np.append(indices, self.find('c'))
-        
-        if len(indices) != 0:
-            for index in indices:
-                x = index[0]
-                y = index[1]
-                (left, right) = self.adjacent_horizontal_values(x,y)
-                (up, down) = self.adjacent_vertical_values(x,y)
-                (r_up, r_down, l_up, l_down) = self.adjacent_diagonal_values(x,y)
-
-                if l_up != ('W' and '.' and "Out"):
-                    self.set_value(x-1, y-1, '.')
-                if r_up != ('W' and '.' and "Out"):
-                    self.set_value(x-1, y+1, '.')
-
-                if l_down != ('W' and '.' and "Out"):
-                    self.set_value(x+1, y-1, '.')
-                if r_down != ('W' and '.' and "Out"):
-                    self.set_value(x+1, y+1, '.')
-
-                if up != ('W' and '.' and "Out"):
-                    self.set_value(x-1, y, '.')
-                if down != ('W' and '.' and "Out"):
-                    self.set_value(x+1, y, '.')
-
-                if left != ('W' and '.' and "Out"):
-                    self.set_value(x, y-1, '.')
-                if right != ('W' and '.' and "Out"):
-                    self.set_value(x, y+1, '.')
+        for i in range(10):
+            for u in range(10):
+                self.fill_surroundings((i,u))
 
         # for lines
         for i in range(10):
             # for row
             filled_cells = np.count_nonzero(self.game_cells[i, :])
-            elements = int(self.row_elements[i])
+            elements = self.row_elements[i]
             water_tips = np.count_nonzero(np.logical_or(self.game_cells[i, :] == 'W', self.game_cells[i, :] == '.'))
             if filled_cells - elements - water_tips == 0:
                 self.game_cells[i, :] = ['.' if cell is None else cell for cell in self.game_cells[i, :]]
 
             # for column
             filled_cells = np.count_nonzero(self.game_cells[:, i])
-            elements = int(self.col_elements[i])
+            elements = self.col_elements[i]
             water_tips = np.count_nonzero(np.logical_or(self.game_cells[:, i] == 'W', self.game_cells[:, i] == '.'))
             if filled_cells - elements - water_tips == 0:
                 self.game_cells[:, i] = ['.' if cell is None else cell for cell in self.game_cells[:, i]]
         
 
-    def check_surroundings(self, coords, size: int):
-        x = coords[0]
-        y = coords[1]
-        boats = ['T', 'B', 'L', 'R', 'M', 'C', 't', 'b', 'l', 'r', 'm', 'c']
+    def fill_surroundings(self, coord):
+        x = coord[0]
+        y = coord[1]
+        val = self.get_value(x, y)
+
+        if val != None: val = val.casefold()
+
+        surround = self.check_surroundings(coord)
+
+        for s in range(len(surround)):
+            if surround[s] == None and val in self.boats:
+                # left
+                if s == 0 and val != 'r' and val != 'm': self.set_value(x, y-1, '.')  
+                # right
+                elif s == 1 and val != 'l' and val != 'm': self.set_value(x, y+1, '.')    
+                # up
+                elif s == 2 and val != 'b' and val != 'm': self.set_value(x-1, y, '.')
+                # down
+                elif s == 3 and val != 't' and val != 'm': self.set_value(x+1, y, '.')
+                # right_up
+                elif s == 4: self.set_value(x-1, y+1, '.')
+                # right_down
+                elif s == 5: self.set_value(x+1, y+1, '.')
+                # left_up
+                elif s == 6: self.set_value(x-1, y-1, '.')
+                # left_down
+                elif s == 7: self.set_value(x+1, y-1, '.')
+        return
+
+    # Devolve duas listas, uma de objetos adjacentes presentes numa lista dada
+    # outra de todos os espacos adjacentes das coordenadas
+    def check_surroundings(self, coord):
+        x = coord[0]
+        y = coord[1]
+        # Surround sera [left, right, up, down, r_up, r_down, l_up, l_down]
         surround = []
         surround.extend(self.adjacent_horizontal_values(x,y))
         surround.extend(self.adjacent_vertical_values(x,y))
         surround.extend(self.adjacent_diagonal_values(x,y))
+        return surround
 
-        return any(s in boats for s in surround)
+    def check_lateral(self, origin, size: int, direction: str):
+        #if self.get_value(origin[0], origin[1]) == None: size += 1
 
-    # Este size eh igual a size-1 no metodo occurs
-    def find_in_distance(self, origin, size: int, direction: str):
+        if direction == "col":
+            return self.col_elements_curr[origin[1]] >= size
+        else:
+            return self.row_elements_curr[origin[0]] >= size
 
-        x = origin[0]
-        y = origin[1]
+    def check_possible_position(self, row: int, col: int):
+        return self.game_cells[row][col] != '.' and self.game_cells[row][col] != 'W' and\
+             not (self.game_cells[row][col] != None and self.game_cells[row][col].islower())
 
-        if self.check_surroundings((x,y), size):
-            return None
+    def check_limits_horizontal(self, row: int, col: int, size: int):
+        a = True
+        b = True
+        if col < 10 - size:
+            a = self.game_cells[row][col + size] == None \
+                or self.game_cells[row][col + size] == '.' or self.game_cells[row][col + size] == 'W'
+        if col != 0:
+            b = self.game_cells[row][col - 1] == None \
+                or self.game_cells[row][col - 1] == '.' or self.game_cells[row][col - 1] == 'W'
+        return a and b
 
-        val = self.get_value(x,y)         
-        boat = [[x,y,val]]
-        acpt = [None, 'M', 'm']
-        for i in range(size):
-            
-            if direction == "up":
-                if x < 0 + size: return None
-                if (self.check_row_parts(x-i-1) < 1) or (self.check_col_parts(y) < size-i): return None
-                if val == None: boat[0][2] = 'b'
-                boat.append([x-i-1, y, self.adjacent_vertical_values(x-i-1,y)[0]])
-                if i == size-1: acpt = [None, 'T', 't']
-            elif direction == "down":
-                if x > 9 - size: return None
-                if (self.check_row_parts(x+i+1) < 1) or (self.check_col_parts(y) < size-i): return None
-                if val == None: boat[0][2] = 't'
-                boat.append([x+i+1, y, self.adjacent_vertical_values(x+i+1,y)[1]])                
-                if i == size-1: acpt = [None, 'B', 'b']
-            elif direction == "left":
-                if y < 0 + size: return None
-                if (self.check_row_parts(x) < 1) or (self.check_col_parts(y-i-1) < size-i): return None
-                if val == None: boat[0][2] = 'r'
-                boat.append([x, y-i-1, self.adjacent_horizontal_values(x,y-i-1)[0]])
-                if i == size-1: acpt = [None, 'L', 'l']
-            elif direction == "right":
-                if y > 9 - size: return None
-                if (self.check_row_parts(x) < 1) or (self.check_col_parts(y+i+1) < size-i): return None
-                if val == None: boat[0][2] = 'l'
-                boat.append([x, y+i+1, self.adjacent_horizontal_values(x,y+i+1)[1]])
-                if i == size-1: acpt = [None, 'R', 'r']
-            else:
-                return None
+    def check_limits_vertical(self, row: int, col: int, size: int):
+        a = True
+        b = True
+        if row < 10 - size:
+            a = self.game_cells[row + size][col] == None \
+                or self.game_cells[row + size][col] == '.' or self.game_cells[row + size][col] == 'W'
+        if row != 0:
+            b = self.game_cells[row - 1][col] == None \
+                or self.game_cells[row - 1][col] == '.' or self.game_cells[row - 1][col] == 'W'
+        return a and b
 
-            if boat[i+1][2] in acpt:
-                if boat[i+1][2] == None: boat[i+1][2] = acpt[2]
+    def find_boat_vertical(self, col: int, size: int):
+        actions = []
+        for i in range(11-size):
+            if not self.check_limits_vertical(i, col, size):
                 continue
-            else:
-                return None
+            if self.check_possible_position(i, col):
+                act = []
+                for u in range(size):
+                    if self.check_possible_position(i + u, col):
+                        val = self.game_cells[i + u][col]
+                        if val == None:
+                            if u == 0:
+                                val = 't'
+                            elif u == size - 1:
+                                val = 'b'
+                            else:
+                                val = 'm'
+                        else:
+                            if u == 0 and val != 'T':
+                                act = None
+                                break
+                            elif u == size - 1 and val != 'B':
+                                act = None
+                                break
+                            elif  u != 0 and  u != size - 1 and val != 'M':
+                                act = None
+                                break
+                        act.append([i + u, col, val])
+                    else:
+                        act = None
+                        break
+                if act != None :
+                    actions.append(act)
 
-        return boat
+        return actions
         
-    def occurs(self, element: str, size: int, direction: str):
-        boats = []
-        indices = self.find(element) 
-        if element != None:
-            np.append(indices, self.find(element.casefold()))
-        if len(indices) != 0:
-            for index in indices:
-                x = index[0]
-                y = index[1]
-                val = self.get_value(x, y)
+    def find_boat_horizontal(self, row: int, size: int):
+        actions = []
+        for i in range(11-size):
+            if self.check_limits_horizontal(row, i, size):
+                continue
+            if self.check_possible_position(row, i):
+                act = []
+                for u in range(size):
+                    if self.check_possible_position(row, i + u):
+                        val = self.game_cells[row][i + u]
+                        if val == None:
+                            if u == 0:
+                                val = 'l'
+                            elif u == size - 1:
+                                val = 'r'
+                            else:
+                                val = 'm'
+                        else:
+                            if u == 0 and val != 'T':
+                                act = None
+                                break
+                            elif u == size - 1 and val != 'B':
+                                act = None
+                                break
+                            elif  u != 0 and  u != size - 1 and val != 'M':
+                                act = None
+                                break
+                        
+                        act.append([row, i + u, val])
+                    else:
+                        act = None
+                        break
+                if act != None:
+                    actions.append(act)
+        return actions
 
-                boat = self.find_in_distance([x,y], size-1, direction)           
-                if boat != None:
-                    boats.append(boat)
-                     
-        return boats
+    # Encontrar n quadrados consecutivos ou usar partes oferecidas pelas HINTs
+    # Recebe um BimaruState e devolve uma lista com as possiveis posicoes de {n}Boat
+    def find_boat_actions(self, size: int):
+        actions = []
 
-    # Encontrar 4 quadrados consecutivos ou usar partes oferecidas pelas HINTs
-    # Recebe um BimaruState e devolve uma lista com as possiveis posicoes do 4Boat
-    # Cada possivel posicao do 4Boat eh em si uma lista de coordenadas
-    def find_4Boat_actions(self):
-        
-        possible_actions = []
+        for i in range(10):
+            if self.check_lateral((0, i), size, "col"):
+                actions.extend(self.find_boat_vertical(i, size))
+            if self.check_lateral((i, 0), size, "row"):
+                actions.extend(self.find_boat_horizontal(i, size))
 
-        # Find indices where 'T' or 't' occurs
-        possible_actions.extend(self.occurs('T', 4, "down"))
-        # Find indices where 'B' or 'b' occurs
-        possible_actions.extend(self.occurs('B', 4, "up"))
-        # Find indices where 'L' or 'l' occurs
-        possible_actions.extend(self.occurs('L', 4, "right"))
-        # Find indices where 'R' or 'r' occurs
-        possible_actions.extend(self.occurs('R', 4, "left"))
-
-        # Find empty spaces and treat as extremities
-        possible_actions.extend(self.occurs(None, 4, "down"))
-        possible_actions.extend(self.occurs(None, 4, "up"))
-        possible_actions.extend(self.occurs(None, 4, "right"))
-        possible_actions.extend(self.occurs(None, 4, "left"))
-
-        return possible_actions
+        return actions
     
-    # Encontrar 3 quadrados consecutivos ou usar partes oferecidas pelas HINTs
-    # Recebe um BimaruState e devolve uma lista com as possiveis posicoes do 4Boat
-    # Cada possivel posicao do 3Boat eh em si uma lista de coordenadas
-    def find_3Boat_actions(self):
-        
-        possible_actions = []
-
-        # Find indices where 'T' or 't' occurs
-        possible_actions.extend(self.occurs('T', 3, "down"))
-        # Find indices where 'B' or 'b' occurs
-        possible_actions.extend(self.occurs('B', 3, "up"))
-        # Find indices where 'L' or 'l' occurs
-        possible_actions.extend(self.occurs('L', 3, "right"))
-        # Find indices where 'R' or 'r' occurs
-        possible_actions.extend(self.occurs('R', 3, "left"))
-
-        # Find empty spaces and treat as extremities
-        possible_actions.extend(self.occurs(None, 3, "down"))
-        possible_actions.extend(self.occurs(None, 3, "up"))
-        possible_actions.extend(self.occurs(None, 3, "right"))
-        possible_actions.extend(self.occurs(None, 3, "left"))
-
-        return possible_actions
-
-    # Encontrar 3 quadrados consecutivos ou usar partes oferecidas pelas HINTs
-    # Recebe um BimaruState e devolve uma lista com as possiveis posicoes do 4Boat
-    # Cada possivel posicao do 3Boat eh em si uma lista de coordenadas
-    def find_2Boat_actions(self):
-        
-        possible_actions = []
-
-        # Find indices where 'T' or 't' occurs
-        possible_actions.extend(self.occurs('T', 2, "down"))
-        # Find indices where 'B' or 'b' occurs
-        possible_actions.extend(self.occurs('B', 2, "up"))
-        # Find indices where 'L' or 'l' occurs
-        possible_actions.extend(self.occurs('L', 2, "right"))
-        # Find indices where 'R' or 'r' occurs
-        possible_actions.extend(self.occurs('R', 2, "left"))
-
-        # Find empty spaces and treat as extremities
-        possible_actions.extend(self.occurs(None, 2, "down"))
-        possible_actions.extend(self.occurs(None, 2, "up"))
-        possible_actions.extend(self.occurs(None, 2, "right"))
-        possible_actions.extend(self.occurs(None, 2, "left"))
-
-        return possible_actions
-    
-
 
 class Bimaru(Problem):
     def __init__(self, board: Board):
@@ -409,32 +427,27 @@ class Bimaru(Problem):
     def actions(self, state: BimaruState):
         """Retorna uma lista de ações que podem ser executadas a
         partir do estado passado como argumento."""
-        # TODO Confuso af
 
-    
         # Actions para 4_boat, depois result, depois actions para 3_boat, repeat...
-        #possible_actions = []
-
         if state.board.four_boat != 0:
-           return state.board.find_4Boat_actions()
+            return state.board.find_boat_actions(4)
         
-        #if state.board.three_boat != 0:
-         #   possible_actions.append(find_3Boat_actions(state))
+        # Find 3 consecutive squares in a row or col or use boat parts given by hints
+        if state.board.three_boat != 0:
+            return state.board.find_boat_actions(3)
 
-        #if state.board.two_boat != 0:
-         #   possible_actions.append(find_2Boat_actions(state))
+        # Find 2 consecutive squares in a row or col or use boat parts given by hints
+        if state.board.two_boat != 0:
+           return state.board.find_boat_actions(2)
         
-        #if state.board.one_boat != 0:
-         #   possible_actions.append(find_1Boat_actions(state))
-    
-        # Find 3 consecutive squares in a row or col
-        # or use boat parts given by hints
-    
-        # Find 2 consecutive squares in a row or col
-        # or use boat parts given by hints
+        if state.board.one_boat != 0:
+            actions = []
+            for i in range(10):
+                for u in range(10):
+                    if state.board.get_value(i, u) == None:
+                        actions.append([[i, u, 'c']])
+            return actions
 
-        # Find 1 free square
-        return possible_actions
 
 
     # action: list of list of int/char
@@ -447,18 +460,21 @@ class Bimaru(Problem):
         # TODO
 
         new_state = BimaruState(state.board)
-
+        board = new_state.board
         for a in action:
-            new_state.board.set_value(a[0], a[1], a[2])
+            board.set_value(a[0], a[1], a[2])
+            board.row_elements_curr[a[0]] -= 1
+            board.col_elements_curr[a[1]] -= 1
 
-        # TODO fill surrounding with water
-        """if action[0][2] == 'b':
-            new_state.board.game_cells[action[0][0] + 1, action[0][1]] = '.'
-            new_state.board.game_cells[action[0][0] + 1, action[0][1] + 1] = '.'"""
 
-        new_state.board.water_fill()
+        board.water_fill()
 
         # When four_boat is placed, state.board.four_boat -= 1
+        size = len(action)
+        if size == 4: board.four_boat -= 1
+        elif size == 3: board.three_boat -= 1
+        elif size == 2: board.two_boat -= 1
+        elif size == 1: board.one_boat -= 1
 
         return new_state
 
@@ -466,28 +482,14 @@ class Bimaru(Problem):
         """Retorna True se e só se o estado passado como argumento é
         um estado objetivo. Deve verificar se todas as posições do tabuleiro
         estão preenchidas de acordo com as regras do problema."""
-        # TODO
-
-        empty_spaces = state.board.game_cells.size - np.count_nonzero(state.board.game_cells)
 
         one_boat = state.board.one_boat
         two_boat = state.board.two_boat
         three_boat = state.board.three_boat
         four_boat = state.board.four_boat
 
-        return (one_boat+two_boat+three_boat+four_boat) + empty_spaces == 0
+        return (one_boat+two_boat+three_boat+four_boat) == 0
 
-        """for i in range(10):
-            state.board.game_cells
-            print(state.board.game_cells)
-            if self.count_pieces(state.board.game_cells, i, False) != state.board.row_elements[i]:
-                return False
-            if self.count_pieces(state.board.game_cells, i, True) != state.board.col_elements[i]:
-                return False
-        if state.board.game_cells.size - np.count_nonzero(state.board.game_cells) != 0:
-            return False
-
-        return True"""
 
     """@staticmethod
     def count_pieces(l, num, rc):
@@ -518,19 +520,16 @@ if __name__ == "__main__":
 
     game_board = Board.parse_instance()
 
+    print(game_board)
+
     problem = Bimaru(game_board)
 
-    #goal_node = depth_first_tree_search(problem)    
-
-    actions = problem.actions(problem.initial)
-    print(actions)
-
-    #state1 = problem.result(problem.initial, )
-
-    #print(goal_node)
+    goal_node = depth_first_tree_search(problem)    
+   
+    print(goal_node.state.board)
 
     # Convert array to string where each row is a line
 
-    print(problem.initial.board)
+    
 
     pass

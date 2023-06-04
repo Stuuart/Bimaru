@@ -44,8 +44,6 @@ class BimaruState:
     def __lt__(self, other):
         return self.id < other.id
 
-    # TODO: outros metodos da classe
-
 
 class Board:
     boats = ['T', 'B', 'L', 'M', 'R', 'C', 't', 'b', 'l', 'm', 'r', 'c']
@@ -58,7 +56,6 @@ class Board:
         self.col_elements_curr = []
         self.game_cells = np.empty((10, 10), dtype=np.chararray)
 
-        # TODO Best way to do it?
         self.one_boat = 4
         self.two_boat = 3
         self.three_boat = 2
@@ -75,19 +72,6 @@ class Board:
 
     def set_value(self, row: int, col: int, val: int):
         self.game_cells[row, col] = val
-
-    # recebe coordenada da column, devolve quantas pecas ainda podem ser postas 
-    def check_col_parts(self, col:int):
-        parts = np.count_nonzero(self.game_cells[:, col])
-        water = np.count_nonzero(np.logical_or(self.game_cells[:, col] == 'W', self.game_cells[:, col] == '.'))
-        return self.col_elements[col] - parts + water
-
-    # recebe coordenada da row, devolve quantas pecas ainda podem ser postas 
-    def check_row_parts(self, row:int):
-        parts = np.count_nonzero(self.game_cells[row, :])
-        water = np.count_nonzero(np.logical_or(self.game_cells[row, :] == 'W', self.game_cells[row, :] == '.'))
-        return self.row_elements[row] - parts + water
-
 
     def adjacent_vertical_values(self, row: int, col: int) -> (str, str):
         """Devolve os valores imediatamente acima e abaixo,
@@ -212,13 +196,18 @@ class Board:
             for u in range(10):
                 val = self.get_value(i, u)
                 cnt = 0
+
                 if val == 'C': self.one_boat -= 1
                 elif val == 'T':
                     while self.get_value(i+cnt, u) != None and self.get_value(i+cnt, u) != "W":
                         cnt += 1
+                    if self.get_value(i + cnt - 1, u) != 'B':
+                        continue
                 elif val == 'L':
                     while self.get_value(i, u+cnt) != None and self.get_value(i, u+cnt) != "W":
                         cnt += 1
+                    if self.get_value(i, u + cnt - 1) != 'R':
+                        continue
                 
                 if cnt == 4:
                     self.four_boat -= 1
@@ -231,32 +220,36 @@ class Board:
     def water_fill(self):
         
         for i in range(10):
-            for u in range(10):
-                self.fill_surroundings((i,u))
+            row_el = self.row_elements[i]
+            col_el = self.col_elements[i]
+            all_row = self.game_cells[i, :]
+            all_col = self.game_cells[:, i]
 
-        # for lines
-        for i in range(10):
+            if row_el == 0:
+                self.game_cells[i, :] = ['.' if cell is None else cell for cell in all_row]
+            if col_el == 0:
+                self.game_cells[:, i] = ['.' if cell is None else cell for cell in all_col]
+
             # for row
-            filled_cells = np.count_nonzero(self.game_cells[i, :])
-            elements = self.row_elements[i]
-            water_tips = np.count_nonzero(np.logical_or(self.game_cells[i, :] == 'W', self.game_cells[i, :] == '.'))
-            if filled_cells - elements - water_tips == 0:
-                self.game_cells[i, :] = ['.' if cell is None else cell for cell in self.game_cells[i, :]]
-
+            filled_cells = np.count_nonzero(all_row)
+            water_tips = np.count_nonzero(np.logical_or(all_row == 'W', all_row == '.'))
+            if filled_cells - row_el - water_tips == 0:
+                self.game_cells[i, :] = ['.' if cell is None else cell for cell in all_row]
             # for column
-            filled_cells = np.count_nonzero(self.game_cells[:, i])
+            filled_cells = np.count_nonzero(all_col)
             elements = self.col_elements[i]
-            water_tips = np.count_nonzero(np.logical_or(self.game_cells[:, i] == 'W', self.game_cells[:, i] == '.'))
+            water_tips = np.count_nonzero(np.logical_or(all_col == 'W', all_col == '.'))
             if filled_cells - elements - water_tips == 0:
-                self.game_cells[:, i] = ['.' if cell is None else cell for cell in self.game_cells[:, i]]
-        
+                self.game_cells[:, i] = ['.' if cell is None else cell for cell in all_col]
+                    
+            for u in range(10):
+                if self.get_value(i, u) in self.boats:
+                    self.fill_surroundings((i,u))
 
     def fill_surroundings(self, coord):
         x = coord[0]
         y = coord[1]
-        val = self.get_value(x, y)
-
-        if val != None: val = val.casefold()
+        val = self.game_cells[x, y].casefold()
 
         surround = self.check_surroundings(coord)
 
@@ -278,7 +271,6 @@ class Board:
                 elif s == 6: self.set_value(x-1, y-1, '.')
                 # left_down
                 elif s == 7: self.set_value(x+1, y-1, '.')
-        return
 
     # Devolve duas listas, uma de objetos adjacentes presentes numa lista dada
     # outra de todos os espacos adjacentes das coordenadas
@@ -293,7 +285,6 @@ class Board:
         return surround
 
     def check_lateral(self, origin, size: int, direction: str):
-        #if self.get_value(origin[0], origin[1]) == None: size += 1
 
         if direction == "col":
             return self.col_elements_curr[origin[1]] >= size
@@ -338,10 +329,12 @@ class Board:
             if self.check_possible_position(i, col):
                 act = []
                 for u in range(size):
+                    # se a intersecao de check_surroundings com boats
                     if self.check_possible_position(i + u, col):
-                        val = self.game_cells[i + u][col]
+                        val = self.game_cells[i + u, col]
                         if val == None:
                             if u == 0:
+                                # se qq posicao sem ser down estiver em boats, break
                                 val = 't'
                             elif u == size - 1:
                                 val = 'b'
@@ -429,7 +422,6 @@ class Board:
 class Bimaru(Problem):
     def __init__(self, board: Board):
         """O construtor especifica o estado inicial."""
-        # TODO
         self.initial = BimaruState(board)
 
     def actions(self, state: BimaruState):
@@ -466,7 +458,6 @@ class Bimaru(Problem):
         'state' passado como argumento. A ação a executar deve ser uma
         das presentes na lista obtida pela execução de
         self.actions(state)."""
-        # TODO
 
         new_state = BimaruState(state.board)
         board = new_state.board
@@ -476,6 +467,7 @@ class Bimaru(Problem):
             board.col_elements_curr[a[1]] -= 1
 
         board.water_fill()
+        #print(board)
 
         # When four_boat is placed, state.board.four_boat -= 1
         size = len(action)
@@ -490,7 +482,6 @@ class Bimaru(Problem):
         """Retorna True se e só se o estado passado como argumento é
         um estado objetivo. Deve verificar se todas as posições do tabuleiro
         estão preenchidas de acordo com as regras do problema."""
-        # TODO
 
         one_boat = state.board.one_boat
         two_boat = state.board.two_boat
@@ -508,7 +499,7 @@ class Bimaru(Problem):
             for u in range(10):
                 val = state.board.get_value(i, u)
                 col_val = state.board.get_value(u, i)
-                if val == None:
+                if val == None or col_val == None:
                     return False
 
                 if (val.isupper() or val.islower()) and val != 'W':
@@ -517,27 +508,27 @@ class Bimaru(Problem):
                     col_elements -= 1
 
                 valid = False
-                if val.isupper() and val != 'W':
-                    if val != 'C':
+                if val != 'W' and val != '.':
+                    if val.casefold() != 'c':
                         for s in state.board.check_surroundings((i,u)):
                             if s != '.' and s != 'W' and s != None:
                                 valid = True
                                 break
                         if not valid:
                             return valid
-
+                    elif val.casefold() == 'c':
+                        for s in state.board.check_surroundings((i,u)):
+                            if s != '.' and s != 'W' and s != None and s != "Out":
+                                return False
             if row_elements != 0 or col_elements != 0:
                 return False
 
         return True
 
-
     def h(self, node: Node):
         """Função heuristica utilizada para a procura A*."""
         # TODO
-        pass
-    
-    # TODO: outros metodos da classe
+        pass 
 
 if __name__ == "__main__":
     # TODO:
@@ -552,10 +543,11 @@ if __name__ == "__main__":
 
     problem = Bimaru(game_board)
 
-    #goal_node = depth_first_tree_search(problem)    
+    goal_node = depth_first_tree_search(problem)    
 
-    goal_node = breadth_first_tree_search(problem)  
+    #goal_node = breadth_first_tree_search(problem)  
    
+    #print(goal_node.path_cost)
     print(goal_node.state.board)
 
     # Convert array to string where each row is a line

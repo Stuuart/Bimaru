@@ -614,8 +614,19 @@ class Bimaru(Problem):
 
     def h(self, node: Node):
         """Função heuristica utilizada para a procura A*."""
-        # TODO
-        pass 
+        violations = 0
+
+        print(node.state.board)
+
+        test = np.where(node.state.board.game_cells == 'M')
+
+        if any(value == '.' for value in node.state.board.adjacent_vertical_values(test[0], test[1])) and \
+                any(value == '.' for value in node.state.board.adjacent_horizontal_values(test[0], test[1])):
+            violations += 100
+            print(str(violations) + ' Violation Registered!\n')
+        print(node.path_cost)
+
+        return violations
 
 if __name__ == "__main__":
     # TODO:

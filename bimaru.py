@@ -342,6 +342,50 @@ class Board:
             b = back == None or back == '.' or back == 'W'
         return a and b
 
+    def check_general(self, state: BimaruState):
+        # Verify if every column and row is at max capacity of boat parts
+        # Verify that only C/c's are totally surrounded by water
+        for i in range(10):
+            row_elements = state.board.row_elements[i]
+            col_elements = state.board.col_elements[i]
+            for u in range(10):
+                val = state.board.get_value(i, u)
+                col_val = state.board.get_value(u, i)
+                if val == None or col_val == None:
+                    return False
+                
+                if (val.isupper() or val.islower()) and val != 'W':
+                    row_elements -= 1
+                if (col_val.isupper() or col_val.islower()) and col_val != 'W':
+                    col_elements -= 1
+
+                valid = False
+                if val != 'W' and val != '.':
+                    if val.casefold() != 'c':
+                        for s in state.board.check_surroundings((i,u)):
+                            if s != '.' and s != 'W' and s != None:
+                                valid = True
+                                break
+                        if not valid:
+                            return valid
+                    elif val.casefold() == 'c':
+                        for s in state.board.check_surroundings((i,u)):
+                            if s != '.' and s != 'W' and s != None and s != "Out":
+                                return False
+                    elif val.casefold() == 'm' or val == 'b' and ((self.game_cells[i - 1, u] == 'W'\
+                    or self.game_cells[i - 1, u] == '.') and (self.game_cells[i, u - 1] == 'W'\
+                    or self.game_cells[i, u - 1] == '.')): 
+                        return False
+                    elif val.casefold() == 'm' or val == 'r' and ((self.game_cells[i - 1, u] == 'W'\
+                    or self.game_cells[i - 1, u] == '.') and (self.game_cells[i, u - 1] == 'W'\
+                    or self.game_cells[i, u - 1] == '.')): 
+                        return False
+
+            if row_elements != 0 or col_elements != 0:
+                return False
+
+        return True
+
     # Searches each column for possible boat positions from top to bottom
     def find_boat_vertical(self, col: int, size: int):
         actions = []
@@ -393,10 +437,7 @@ class Board:
         for i in range(11-size):
             surrounding = self.check_surroundings((row, i))
             val = self.get_value(row, i)
-            if not self.check_possible_position(val):
-                continue
-            if not self.check_limits_horizontal(row, i, size):
-                continue
+            
             act = []
             for u in range(size):
                 val = self.game_cells[row][i + u]
@@ -453,6 +494,8 @@ class Bimaru(Problem):
     def actions(self, state: BimaruState):
         """Retorna uma lista de ações que podem ser executadas a
         partir do estado passado como argumento."""
+        #if not state.board.check_general(state):
+            #return []
         
         # Actions for 4_boat, then result, then actions for 3_boat, repeat...
         if state.board.four_boat != 0:
@@ -470,10 +513,16 @@ class Bimaru(Problem):
             actions = []
             for i in range(10):
                 for u in range(10):
+                    if state.board.one_boat == 1 and state.board.get_value(i, u) == None:
+                        state.board.one_boat -= 1
+                        return [[[i, u, 'c']]]
                     if state.board.get_value(i, u) == None:
-                        actions.append([[i, u, 'c']])
-            
-            return actions
+                        state.board.set_value(i, u, 'c')
+                        state.board.row_elements_curr[i] -= 1
+                        state.board.col_elements_curr[u] -= 1
+                        state.board.one_boat -= 1
+
+            state.board.water_fill()
 
         return []
 
@@ -487,20 +536,24 @@ class Bimaru(Problem):
 
         new_state = BimaruState(state.board)
         board = new_state.board
+
         for a in action:
             board.set_value(a[0], a[1], a[2])
             board.row_elements_curr[a[0]] -= 1
             board.col_elements_curr[a[1]] -= 1
 
-        board.water_fill()
+        if board.two_boat != 0:
+            board.water_fill()
 
-        # When four_boat is placed, state.board.four_boat -= 1
         size = len(action)
+        # When four_boat is placed, state.board.four_boat -= 1
         if size == 4: board.four_boat -= 1
         elif size == 3: board.three_boat -= 1
         elif size == 2: board.two_boat -= 1
-        elif size == 1: board.one_boat -= 1
-
+        #elif size == 1: board.one_boat -= 1
+        
+        #print()
+        #print(board)
         return new_state
 
     def goal_test(self, state: BimaruState):
@@ -526,7 +579,7 @@ class Bimaru(Problem):
                 col_val = state.board.get_value(u, i)
                 if val == None or col_val == None:
                     return False
-
+                
                 if (val.isupper() or val.islower()) and val != 'W':
                     row_elements -= 1
                 if (col_val.isupper() or col_val.islower()) and col_val != 'W':
@@ -545,6 +598,15 @@ class Bimaru(Problem):
                         for s in state.board.check_surroundings((i,u)):
                             if s != '.' and s != 'W' and s != None and s != "Out":
                                 return False
+                    elif val.casefold() == 'm' or val == 'b' and ((self.game_cells[i - 1, u] == 'W'\
+                    or self.game_cells[i - 1, u] == '.') and (self.game_cells[i, u - 1] == 'W'\
+                    or self.game_cells[i, u - 1] == '.')): 
+                        return False
+                    elif val.casefold() == 'm' or val == 'r' and ((self.game_cells[i - 1, u] == 'W'\
+                    or self.game_cells[i - 1, u] == '.') and (self.game_cells[i, u - 1] == 'W'\
+                    or self.game_cells[i, u - 1] == '.')): 
+                        return False
+
             if row_elements != 0 or col_elements != 0:
                 return False
 
